@@ -1,0 +1,11 @@
+[package]
+authors = ["kngwyu <yuji.kngw.80s.revive@gmail.com>"]
+name = "fugu-shell"
+version = "0.1.0"
+
+[dependencies]
+env_logger = "0.4.3"
+lazy_static = "0.2.10"
+log = "0.3.8"
+walkdir = "2.0.1"
+yansi = "0.3.4"
