@@ -41,6 +41,7 @@ impl<'a> CommandList<'a> {
     // PATHのコマンドは一回しかsetしない
     pub fn new() -> CommandList<'a> {
         let mut path_cmds = HashSet::new();
+        let s = "";
         match env::var_os("PATH") {
             Some(paths) => {
                 for path in env::split_paths(&paths) {
@@ -79,9 +80,7 @@ impl<'a> CommandList<'a> {
             };
             let fpath = e.path().to_str().unwrap().to_owned();
             let fdata = e.metadata().ok().unwrap();
-            //  println!("{} {:?}", fname, fdata.permissions());
             if fdata.is_file() {
-                // println!("{}", fpath);
                 wd_cmd.insert(fpath);
             }
         }
