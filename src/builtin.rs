@@ -2,7 +2,7 @@
 use exec::CommandStore;
 use walkdir::WalkDir;
 use std::env;
-pub const BUILTIN_CMD: [&'static str; 1] = ["cd"];
+pub const BUILTIN_CMD: [&'static str; 2] = ["cd", "exit"];
 
 pub fn exec_builtin(cmd: &CommandStore) {
     match &*cmd.name {
