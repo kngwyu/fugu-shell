@@ -1,12 +1,14 @@
-use yansi::Color;
+
 use std::io::{self, Write};
 use std::str::FromStr;
+use termion::color;
+use termion::color::*;
 pub struct PromptSetting<'a> {
     face1: &'a str,
     face2: &'a str,
-    color1: Color,
-    color2: Color,
-    color3: Color,
+    color1: Box<Color>,
+    color2: Box<Color>,
+    color3: Box<Color>,
     dir_depth: usize,
 }
 
@@ -15,13 +17,13 @@ impl<'a> PromptSetting<'a> {
         PromptSetting {
             face1: "Fugu(°)#))<< ~",
             face2: "$ ",
-            color1: Color::Cyan,
-            color2: Color::Green,
-            color3: Color::White,
+            color1: Box::new(Black),
+            color2: Box::new(Black),
+            color3: Box::new(Black),
             dir_depth: 2,
         }
     }
-    pub fn print_face(&self, path: &String) {
+    pub fn print_face<W: Write>(&self, path: &String, mut stdout: &mut W) {
         let p = {
             let mut cur = path.len() - 1;
             let mut cnt = 0;
@@ -37,12 +39,16 @@ impl<'a> PromptSetting<'a> {
             }
             path[cur..path.len()].to_owned()
         };
-        print!(
-            "{}{}{}",
-            self.color1.paint(self.face1),
-            self.color2.paint(p),
-            self.color3.paint(self.face2)
+        write!(
+            stdout,
+            "{}{}{}{}{}{}",
+            color::Fg(Cyan),
+            self.face1,
+            color::Fg(Green),
+            p,
+            color::Fg(LightWhite),
+            self.face2,
         );
-        io::stdout().flush().unwrap();
+        stdout.flush().unwrap();
     }
 }
