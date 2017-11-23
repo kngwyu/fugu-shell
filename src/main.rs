@@ -6,23 +6,19 @@ extern crate termion;
 #[macro_use]
 extern crate lazy_static;
 
-mod read_line;
 mod prompt_setting;
 mod exec;
 mod builtin;
 mod common;
 mod editor;
 
-
-use read_line::read_cmd;
 use prompt_setting::PromptSetting;
 use exec::{CommandList, parse_cmd};
-
+use editor::{Editor, Point};
 use std::io::{stdin, stdout, Read, Write};
 use std::env;
-
-use termion::event::{Key, Event, MouseEvent};
-use termion::input::{TermRead, MouseTerminal};
+use termion::event::{Key, Event};
+use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
 fn main() {
@@ -33,37 +29,26 @@ fn main() {
     let prompt = PromptSetting::default();
     write!(
         stdout,
-        "{}{}",
+        "{}{}Wellcome to Fugu Shell! (°)#))<< {}",
         termion::clear::All,
-        termion::cursor::Goto(1, 1)
+        termion::cursor::Goto(1, 1),
+        termion::cursor::Goto(1, 2),
     )
     .unwrap();
     stdout.flush().unwrap();
-    let mut pos = termion::cursor::Goto(1, 1);
+    let current_dir = env::current_dir()
+        .unwrap()
+        .into_os_string()
+        .into_string()
+        .unwrap();
+    let num = prompt.print_face(&current_dir, &mut stdout);
+    let mut editor = Editor::new(Point::new(num, 2), &mut stdout);
     for event in stdin.events() {
         let evt = event.unwrap();
-        let current_dir = env::current_dir()
-            .unwrap()
-            .into_os_string()
-            .into_string()
-            .unwrap();
-        prompt.print_face(&current_dir, &mut stdout);
         match evt {
-            Event::Key(k) => {
-                match k {
-                    Key::Char('q') => break,
-                    Key::Char(c) => write!(stdout, "{}{}", pos, c).unwrap(),
-                    _ => {}
-                }
-            }
-            Event::Mouse(me) => {
-                match me {
-                    MouseEvent::Press(_, x, y) => {
-                        pos = termion::cursor::Goto(x, y);
-                        write!(stdout, "{}x", pos).unwrap();
-                    }
-                    _ => (),
-                }
+            Event::Key(key) => {
+                editor.handle_key(&key, &mut stdout);
+                editor.debug(&mut stdout);
             }
             _ => {}
         }

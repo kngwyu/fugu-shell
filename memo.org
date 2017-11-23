@@ -4,6 +4,9 @@
 - 文法
   - とりあえず命令文+andくらい？
   - 後から大幅に変更しなくてすむようにif, while くらい実装する?
+  - 現在の使用
+    - command := command | command > fname (リダイレクション) | command pi|pe command | command ; and command
+    - なんか面倒だから勘でいいや...
 - エディタ
   - どうせたいしたことしないからデータ構造は別に何でもいいや...
     - 削除が楽なようにLinkedList<String>とか?
