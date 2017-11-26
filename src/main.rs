@@ -11,18 +11,21 @@ mod exec;
 mod builtin;
 mod common;
 mod editor;
+mod fugu_env;
 
+use fugu_env::FuguEnv;
 use prompt_setting::PromptSetting;
-use exec::{CommandList, parse_cmd};
-use editor::{Editor, Point};
+use exec::CommandList;
+use editor::{Editor, Point, EditResult};
 use std::io::{stdin, stdout, Read, Write};
 use std::env;
 use termion::event::{Key, Event};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-
+use std::ops::Range;
 fn main() {
     let _ = env_logger::init();
+    let _ = FuguEnv::new();
     let stdin = stdin();
     let stdout = stdout();
     let mut stdout = stdout.lock().into_raw_mode().unwrap();
@@ -42,30 +45,67 @@ fn main() {
         .into_string()
         .unwrap();
     let num = prompt.print_face(&current_dir, &mut stdout);
-    let mut editor = Editor::new(Point::new(num, 2), &mut stdout);
+    let mut editor = Editor::new(Point::new(num, 2));
     for event in stdin.events() {
         let evt = event.unwrap();
         match evt {
             Event::Key(key) => {
-                editor.handle_key(&key, &mut stdout);
+                match editor.handle_key(&key) {
+                    EditResult::Edited => print_scr(&editor, &mut stdout, 0..1),
+                    EditResult::Moved => move_csr(&editor, &mut stdout),
+                    EditResult::None => {}
+                };
                 editor.debug(&mut stdout);
             }
             _ => {}
         }
         stdout.flush().unwrap();
     }
-    //     loop {
-    //         let current_dir = env::current_dir()
-    //             .unwrap()
-    //             .into_os_string()
-    //             .into_string()
-    //             .unwrap();
-    //         prompt_setting.print_face(&current_dir);
-    //         if before_dir != current_dir {
-    //             cmd_list.upd_wd_commands(&current_dir);
-    //             before_dir = current_dir;
-    //         }
-    //         let s = read_cmd();
-    //         cmd_list.execute_command(parse_cmd(&s));
-    //     }
 }
+use termion::cursor;
+use termion::clear;
+fn move_csr<W: Write>(e: &Editor, stdout: &mut W) {
+    write!(stdout, "{}", (e.cursor_base + e.cursor_buf).goto()).unwrap();
+}
+fn print_scr<W: Write>(e: &Editor, stdout: &mut W, range: Range<usize>) {
+    for i in range {
+        let cur_y = e.cursor_base.y + i;
+        let pos = Point::new(e.cursor_base.x, cur_y);
+        write!(
+            stdout,
+            "{}{}{}",
+            pos.goto(),
+            clear::UntilNewline,
+            e.buffer[i]
+        )
+        .unwrap();
+    }
+    move_csr(e, stdout);
+}
+
+
+
+// fn exp() {
+//     use std::time::{Duration, SystemTime};
+//     let loopnum = 100000000;
+//     let a = SystemTime::now();
+//     let mut array = Vec::new();
+//     for i in 0..256 {
+//         array.push(i + 1);
+//     }
+//     let mut k = 0;
+//     for i in 0..loopnum {
+//         k += i % array[i % 256];
+//     }
+//     let b = SystemTime::now();
+//     println!("{:?}", b.duration_since(a).unwrap());
+//     let mut map = std::collections::HashMap::new();
+//     for i in 0..256 {
+//         map.insert(i, i + 1);
+//     }
+//     for i in 0..loopnum {
+//         k += i % map[&(i % 256)];
+//     }
+//     let c = SystemTime::now();
+//     println!("{:?}", c.duration_since(b).unwrap());
+// }
