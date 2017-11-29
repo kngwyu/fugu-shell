@@ -3,33 +3,7 @@ use std::env;
 use std::process::Command;
 use walkdir::WalkDir;
 use builtin::*;
-pub struct CommandStore {
-    pub name: String,
-    pub args: Vec<String>,
-    pub stdin: Option<String>,
-    pub stdout: Option<String>,
-}
-
-impl CommandStore {
-    fn new(s: &str) -> CommandStore {
-        CommandStore {
-            name: s.to_owned(),
-            args: Vec::new(),
-            stdin: None,
-            stdout: None,
-        }
-    }
-    fn add_arg(&mut self, s: &str) {
-        self.args.push(s.to_owned())
-    }
-    fn add_stdin(&mut self, s: &str) {
-        self.stdin = Some(s.to_owned());
-    }
-    fn add_stdout(&mut self, s: &str) {
-        self.stdout = Some(s.to_owned());
-    }
-}
-
+use parser::CommandStore;
 // 'aはstaticのみ
 pub struct CommandList<'a> {
     commands_in_path: HashSet<String>,

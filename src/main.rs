@@ -11,6 +11,7 @@ mod exec;
 mod builtin;
 mod common;
 mod editor;
+mod parser;
 mod fugu_env;
 
 use fugu_env::FuguEnv;
@@ -85,27 +86,28 @@ fn print_scr<W: Write>(e: &Editor, stdout: &mut W, range: Range<usize>) {
 
 
 
-// fn exp() {
-//     use std::time::{Duration, SystemTime};
-//     let loopnum = 100000000;
-//     let a = SystemTime::now();
-//     let mut array = Vec::new();
-//     for i in 0..256 {
-//         array.push(i + 1);
-//     }
-//     let mut k = 0;
-//     for i in 0..loopnum {
-//         k += i % array[i % 256];
-//     }
-//     let b = SystemTime::now();
-//     println!("{:?}", b.duration_since(a).unwrap());
-//     let mut map = std::collections::HashMap::new();
-//     for i in 0..256 {
-//         map.insert(i, i + 1);
-//     }
-//     for i in 0..loopnum {
-//         k += i % map[&(i % 256)];
-//     }
-//     let c = SystemTime::now();
-//     println!("{:?}", c.duration_since(b).unwrap());
-// }
+fn exp() {
+    use std::time::{Duration, SystemTime};
+    let loopnum = 10000000;
+    let char_num = 500;
+    let a = SystemTime::now();
+    let mut array = Vec::new();
+    for i in 0..char_num {
+        array.push(i + 1);
+    }
+    let mut k = 0;
+    for i in 0..loopnum {
+        k += i % array[i % char_num];
+    }
+    let b = SystemTime::now();
+    println!("{:?}", b.duration_since(a).unwrap());
+    let mut map = std::collections::BTreeMap::new();
+    for i in 0..char_num {
+        map.insert(i, i + 1);
+    }
+    for i in 0..loopnum {
+        k += i % map[&(i % char_num)];
+    }
+    let c = SystemTime::now();
+    println!("{:?}", c.duration_since(b).unwrap());
+}
