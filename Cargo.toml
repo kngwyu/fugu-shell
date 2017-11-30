@@ -2,9 +2,12 @@
 authors = ["kngwyu <yuji.kngw.80s.revive@gmail.com>"]
 name = "fugu-shell"
 version = "0.1.0"
+
 [dependencies]
-env_logger = "0.4.3"
+clap = "2.28.0"
 lazy_static = "0.2.10"
-log = "0.3.8"
+regex = "0.2.2"
+slog = "2.0.12"
+sloggers = "0.2.2"
 termion = "1.5.1"
 walkdir = "2.0.1"

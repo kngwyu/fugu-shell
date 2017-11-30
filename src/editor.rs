@@ -10,6 +10,8 @@ pub struct Editor {
     yank: Option<String>,
 }
 pub enum EditResult {
+    JustTailAdd(Char),
+    JustAdd,
     Edited,
     Moved,
     None,
@@ -27,7 +29,7 @@ impl Editor {
         }
     }
     //    pub fn reset(init_pos: Point) -> Editor {}
-    // エディターのデバッグ用
+    // エディターのデバッグ用 将来的には消す
     pub fn debug<W: Write>(&self, stdout: &mut W) {
         write!(
             stdout,
@@ -49,12 +51,13 @@ impl Editor {
                 if self.cursor_buf.x == current_len {
                     self.buffer[self.cursor_buf.y].push(c);
                     self.cursor_buf.x += 1;
+                    EditResult::JustTailAdd(c)
                 } else {
                     assert!(self.cursor_buf.x < current_len);
                     self.buffer[self.cursor_buf.y].insert(self.cursor_buf.x, c);
                     self.cursor_buf.x += 1;
+                    EditResult::JustAdd
                 }
-                EditResult::Edited
             }
             Key::Ctrl('h') | Key::Backspace => {
                 // insert
@@ -125,10 +128,9 @@ impl Editor {
                 } else {
                     return EditResult::None;
                 }
-                EditResult::Edited
+                EditResult::JustAdd
             }
-            Key::Ctrl('p') | Key::Up => EditResult::None,
-            Key::Ctrl('n') | Key::Down => EditResult::None,
+
             _ => EditResult::None,
         }
     }

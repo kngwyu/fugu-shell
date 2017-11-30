@@ -1,13 +1,13 @@
-
-use exec::CommandStore;
 use walkdir::WalkDir;
 use std::env;
+use common::LOGGER;
+use exec::CommandStore;
 pub const BUILTIN_CMD: [&'static str; 2] = ["cd", "exit"];
 
 pub fn exec_builtin(cmd: &CommandStore) {
     match &*cmd.name {
         "cd" => builtin_cd(cmd),
-        _ => error!("Invalid Builtin Command"),
+        _ => error!(LOGGER, "Invalid Builtin Command"),
     }
 }
 

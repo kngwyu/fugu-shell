@@ -3,7 +3,51 @@ use std::env;
 use std::process::Command;
 use walkdir::WalkDir;
 use builtin::*;
-use parser::CommandStore;
+use common::LOGGER;
+
+#[derive(Clone)]
+pub struct CommandStore {
+    pub name: String,
+    pub args: Vec<String>,
+    pub stdin: Option<String>,
+    pub stdout: Option<String>,
+    pub stderr: Option<String>,
+    pub pipe_in: bool,
+    pub pipe_out: bool,
+    pub wait: bool,
+}
+impl CommandStore {
+    pub fn new() -> CommandStore {
+        CommandStore {
+            name: String::new(),
+            args: Vec::new(),
+            stdin: None,
+            stdout: None,
+            stderr: None,
+            pipe_in: false,
+            pipe_out: false,
+            wait: true,
+        }
+    }
+    pub fn add_name(&mut self, s: &str) {
+        self.name = s.to_owned();
+    }
+    pub fn add_arg(&mut self, s: &str) {
+        self.args.push(s.to_owned())
+    }
+    pub fn add_stdin(&mut self, s: &str) {
+        self.stdin = Some(s.to_owned());
+    }
+    pub fn add_stdout(&mut self, s: &str) {
+        self.stdout = Some(s.to_owned());
+    }
+    pub fn add_stderr(&mut self, s: &str) {
+        self.stderr = Some(s.to_owned());
+    }
+}
+
+
+
 // 'aはstaticのみ
 pub struct CommandList<'a> {
     commands_in_path: HashSet<String>,
@@ -48,7 +92,7 @@ impl<'a> CommandList<'a> {
             let e = match entry {
                 Ok(e) => e,
                 Err(err) => {
-                    error!("error in upd_wd, {:?}", err);
+                    error!(LOGGER, "error in upd_wd, {:?}", err);
                     break;
                 }
             };

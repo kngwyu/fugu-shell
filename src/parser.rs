@@ -1,44 +1,8 @@
-use std::env;
-use std::ascii::AsciiExt;
-pub struct CommandStore {
-    pub name: String,
-    pub args: Vec<String>,
-    pub stdin: Option<String>,
-    pub stdout: Option<String>,
-    pub stderr: Option<String>,
-    pub pipe_in: bool,
-    pub pipe_out: bool,
-}
-impl CommandStore {
-    fn new() -> CommandStore {
-        CommandStore {
-            name: String::new(),
-            args: Vec::new(),
-            stdin: None,
-            stdout: None,
-            stderr: None,
-            pipe_in: false,
-            pipe_out: false,
-        }
-    }
-    fn add_name(&mut self, s: &str) {
-        self.name = s.to_owned();
-    }
-    fn add_arg(&mut self, s: &str) {
-        self.args.push(s.to_owned())
-    }
-    fn add_stdin(&mut self, s: &str) {
-        self.stdin = Some(s.to_owned());
-    }
-    fn add_stdout(&mut self, s: &str) {
-        self.stdout = Some(s.to_owned());
-    }
-    fn add_stderr(&mut self, s: &str) {
-        self.stderr = Some(s.to_owned());
-    }
-}
+use common::LOGGER;
+use exec::CommandStore;
 // Token内にいるかどうかはcurrent_tokenで判断
-enum ParseStatus {
+#[derive(Clone, Copy, Debug)]
+pub enum ParseStatus {
     WaitCommand,
     WaitArgs,
     WaitInFile,
@@ -56,18 +20,19 @@ pub struct Parser {
     parse_result: ParseResult,
 }
 impl Parser {
-    pub fn new(cmd: &String) -> Parser {
-        let mut ps = Parser {
+    pub fn new() -> Parser {
+        Parser {
             parsed_cmd: Vec::new(),
             parse_status: ParseStatus::WaitCommand,
             current_token: String::new(),
             current_cmd: CommandStore::new(),
             parse_result: ParseResult::CmdOk,
-        };
-        for c in cmd.chars() {
-            ps.read1(c);
         }
-        ps
+    }
+    pub fn add_str(&mut self, s: &str) {
+        for c in s.chars() {
+            self.read1(c);
+        }
     }
     pub fn read1(&mut self, ch: char) {
         self.parse_status = match ch {
@@ -82,9 +47,21 @@ impl Parser {
                 self.current_cmd.pipe_in = true;
                 ParseStatus::WaitCommand
             }
+            '&' => {
+                self.current_cmd.wait = false;
+                self.add_cmd();
+                ParseStatus::WaitCommand
+            }
             '<' => ParseStatus::WaitInFile,
             '>' => ParseStatus::WaitOutFile,
-            '^' => ParseStatus::WaitErrFile,
+            '^' => {
+                if self.current_token.is_empty() {
+                    ParseStatus::WaitErrFile
+                } else {
+                    self.current_token.push(ch);
+                    self.parse_status
+                }
+            }
             _ => {
                 self.current_token.push(ch);
                 self.parse_status
@@ -121,7 +98,7 @@ impl Parser {
         }
     }
     fn add_cmd(&mut self) {
-        self.parsed_cmd.push(self.current_cmd);
+        self.parsed_cmd.push(self.current_cmd.clone());
         self.current_cmd = CommandStore::new();
     }
 }

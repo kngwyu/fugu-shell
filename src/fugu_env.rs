@@ -1,15 +1,16 @@
-// std::envと名前がかぶらないようにfugu_envにした
 use std::env;
-use std::process::Command;
 use walkdir::WalkDir;
 use builtin::*;
-use std::os::unix::fs::MetadataExt;
-use std::fs::Metadata;
+use common::{LOGGER, is_file_executable};
+use regex::Regex;
+use std::error::Error;
 pub struct FuguEnv<'a> {
-    path_cmds: Vec<String>,
-    builtin_cmds: Vec<&'a str>, // ビルトイン関数
+    pub path_cmds: Vec<String>,
+    pub builtin_cmds: Vec<&'a str>, // ビルトイン関数
     fugu_vars: Vec<String>, // Fugu変数
     env_vars: Vec<String>, // 環境変数
+    path_cache: Vec<bool>,
+    builtin_cache: Vec<bool>,
 }
 impl<'a> FuguEnv<'a> {
     pub fn new() -> FuguEnv<'a> {
@@ -21,7 +22,10 @@ impl<'a> FuguEnv<'a> {
                     let e = entry.ok().unwrap();
                     let fname = match e.file_name().to_os_string().into_string() {
                         Ok(s) => s,
-                        Err(_) => panic!("Error in into_string"),
+                        Err(_) => {
+                            error!(LOGGER, "Error in into_string");
+                            continue;
+                        }
                     };
                     let fdata = e.metadata().ok().unwrap();
                     if fdata.is_file() && is_file_executable(&fdata) {
@@ -30,17 +34,68 @@ impl<'a> FuguEnv<'a> {
                 }
             }
         }
-        println!("{}", path_cmds.len());
         let builtin_cmds: Vec<&'a str> = BUILTIN_CMD.iter().cloned().collect();
         FuguEnv {
+            path_cache: vec![false; path_cmds.len()],
+            builtin_cache: vec![false; builtin_cmds.len()],
             path_cmds: path_cmds,
             builtin_cmds: builtin_cmds,
             fugu_vars: Vec::new(),
             env_vars: Vec::new(),
         }
     }
+    fn reset_search(&mut self) {
+        for x in &mut self.path_cache {
+            *x = false;
+        }
+        for x in &mut self.builtin_cache {
+            *x = false;
+        }
+    }
+    fn search_cmd(&mut self, search_str: &str) {
+        let re = match Regex::new(&search_str) {
+            Ok(r) => r,
+            Err(why) => {
+                debug!(LOGGER, "Regex Compile Failed, {:?}", why.description());
+                return;
+            }
+        };
+        for (i, s) in self.path_cmds.iter().enumerate() {
+            if self.path_cache[i] == false {
+                continue;
+            }
+            if !re.is_match(s) {
+                self.path_cache[i] = false;
+            }
+        }
+        for (i, s) in self.builtin_cmds.iter().enumerate() {
+            if self.builtin_cache[i] == false {
+                continue;
+            }
+            if !re.is_match(s) {
+                self.builtin_cache[i] = false;
+            }
+        }
+    }
+    pub fn search_to_vec(&self) -> Vec<(usize, CommandType)> {
+        let mut res = Vec::new();
+        for (i, x) in self.path_cache.iter().enumerate() {
+            if *x {
+                res.push((i, CommandType::Path));
+            }
+        }
+        for (i, x) in self.builtin_cache.iter().enumerate() {
+            if *x {
+                res.push((i, CommandType::Builtin));
+            }
+        }
+        res
+    }
 }
 
-fn is_file_executable(fdata: &Metadata) -> bool {
-    (fdata.mode() & 0o111) != 0
+#[derive(Clone, Copy, Debug)]
+pub enum CommandType {
+    Path,
+    Builtin,
+    User,
 }
