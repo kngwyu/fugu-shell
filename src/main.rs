@@ -21,7 +21,7 @@ use fugu_env::{FuguEnv, CommandType};
 use prompt_setting::PromptSetting;
 use exec::CommandList;
 use editor::{Editor, Point, EditResult};
-use parser::Parser;
+use parser::{Parser, ParseStatus};
 use common::LOGGER;
 use std::io::{stdin, stdout, Write};
 use std::env;
@@ -34,7 +34,6 @@ use termion::cursor;
 use termion::clear;
 use termion::style;
 fn main() {
-    let _ = FuguEnv::new();
     let stdin = stdin();
     let screen = stdout();
     let mut screen = screen.lock().into_raw_mode().unwrap();
@@ -48,16 +47,24 @@ fn main() {
     }
     let mut parser = Parser::new();
     let mut selector = Selector::empty();
+    let mut fuguenv = FuguEnv::new();
     for event in stdin.events() {
         let evt = event.unwrap();
         match evt {
             Event::Key(key) => {
                 match key {
-                    Key::Ctrl('p') | Key::Up => {}
-                    Key::Ctrl('n') | Key::Down => {}
+                    Key::Ctrl('p') | Key::Up => {
+                        selector.csr_up();
+                        screen.print_selector(&selector, &fuguenv, &editor);
+                    }
+                    Key::Ctrl('n') | Key::Down => {
+                        selector.csr_down();
+                        screen.print_selector(&selector, &fuguenv, &editor);
+                    }
                     Key::Char('\t') => {}
                     _ => {
-                        match editor.handle_key(&key) {
+                        let res = editor.handle_key(&key);
+                        match res {
                             EditResult::JustTailAdd(c) => {
                                 parser.read1(c);
                                 screen.print_editor(&editor, 0..1);
@@ -75,6 +82,23 @@ fn main() {
                             EditResult::Moved => screen.move_csr(&editor),
                             EditResult::None => {}
                         };
+                        match res {
+                            EditResult::JustTailAdd(_) |
+                            EditResult::JustAdd |
+                            EditResult::Edited => {
+                                match parser.parse_status {
+                                    ParseStatus::WaitCommand => {
+                                        fuguenv.reset_search();
+                                        fuguenv.search_cmd(parser.get_cur_token());
+                                        let v = fuguenv.search_to_vec();
+                                        selector = Selector::new(v);
+                                        screen.print_selector(&selector, &fuguenv, &editor);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -85,7 +109,7 @@ fn main() {
 
 struct Selector {
     buf: Vec<(usize, CommandType)>,
-    range: Range<usize>,
+    range: (usize, usize),
     max_print: usize,
     cursor: Option<usize>,
 }
@@ -93,7 +117,7 @@ impl Selector {
     fn empty() -> Selector {
         Selector {
             max_print: 1,
-            range: 0..1,
+            range: (0, 1),
             buf: Vec::new(),
             cursor: None,
         }
@@ -102,9 +126,34 @@ impl Selector {
         let m = min(b.len(), 15);
         Selector {
             max_print: m,
-            range: 0..m,
+            range: (0, m),
             buf: b,
             cursor: None,
+        }
+    }
+    fn csr_down(&mut self) {
+        if let Some(num) = self.cursor {
+            if num + 1 >= self.buf.len() {
+                return;
+            }
+            self.cursor = Some(num + 1);
+            if num + 1 >= self.max_print {
+                self.range.0 += 1;
+                self.range.1 += 1;
+            }
+        } else {
+            self.cursor = Some(0);
+        }
+    }
+    fn csr_up(&mut self) {
+        if let Some(num) = self.cursor {
+            if num > 0 {
+                self.cursor = Some(num - 1);
+                if num >= self.max_print {
+                    self.range.0 -= 1;
+                    self.range.1 -= 1;
+                }
+            }
         }
     }
 }
@@ -114,7 +163,7 @@ trait FuguScreen {
     fn reset_scr(&mut self, u16, &PromptSetting) -> usize;
     fn move_csr(&mut self, &Editor);
     fn print_editor(&mut self, &Editor, Range<usize>);
-    fn print_selector(&mut self, &Selector, &FuguEnv);
+    fn print_selector(&mut self, &Selector, &FuguEnv, &Editor);
 }
 impl<W: Write> FuguScreen for W {
     fn init_msg(&mut self) {
@@ -130,6 +179,7 @@ impl<W: Write> FuguScreen for W {
         }
         self.flush().unwrap();
     }
+
     fn reset_scr(&mut self, cur_y: u16, prompt: &PromptSetting) -> usize {
         let current_dir = env::current_dir()
             .unwrap()
@@ -162,8 +212,9 @@ impl<W: Write> FuguScreen for W {
         }
         self.move_csr(e);
     }
-    fn print_selector(&mut self, sel: &Selector, env: &FuguEnv) {
-        for (j, i) in sel.range.enumerate() {
+    fn print_selector(&mut self, sel: &Selector, env: &FuguEnv, edit: &Editor) {
+        write!(self, "{}{}", cursor::Goto(1, 3), clear::AfterCursor).unwrap();
+        for (j, i) in (sel.range.0..sel.range.1).enumerate() {
             let st = match sel.buf[i].1 {
                 CommandType::Path => &env.path_cmds[sel.buf[i].0],
                 CommandType::Builtin => env.builtin_cmds[sel.buf[i].0],
@@ -172,17 +223,18 @@ impl<W: Write> FuguScreen for W {
             let s = if let Some(k) = sel.cursor {
                 if k == i {
                     format!(
-                        "{}{}{}{}",
+                        "{}{}{}{}{}",
                         cursor::Goto(1, (j + 3) as u16),
-                        clear::UntilNewline,
+                        clear::AfterCursor,
                         style::Underline,
-                        st
+                        st,
+                        style::NoUnderline
                     )
                 } else {
                     format!(
                         "{}{}{}",
                         cursor::Goto(1, (j + 3) as u16),
-                        clear::UntilNewline,
+                        clear::AfterCursor,
                         st
                     )
                 }
@@ -190,14 +242,15 @@ impl<W: Write> FuguScreen for W {
                 format!(
                     "{}{}{}",
                     cursor::Goto(1, (j + 3) as u16),
-                    clear::UntilNewline,
+                    clear::AfterCursor,
                     st
                 )
             };
-            match write!(self, "{}", st) {
+            match write!(self, "{}", s) {
                 Ok(_) => {}
                 Err(why) => error!(LOGGER, "error in write! macro, {:?}", why.description()),
             }
         }
+        self.move_csr(&edit);
     }
 }

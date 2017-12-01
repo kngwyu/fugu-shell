@@ -10,7 +10,7 @@ pub struct Editor {
     yank: Option<String>,
 }
 pub enum EditResult {
-    JustTailAdd(Char),
+    JustTailAdd(char),
     JustAdd,
     Edited,
     Moved,

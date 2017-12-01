@@ -36,27 +36,27 @@ impl<'a> FuguEnv<'a> {
         }
         let builtin_cmds: Vec<&'a str> = BUILTIN_CMD.iter().cloned().collect();
         FuguEnv {
-            path_cache: vec![false; path_cmds.len()],
-            builtin_cache: vec![false; builtin_cmds.len()],
+            path_cache: vec![true; path_cmds.len()],
+            builtin_cache: vec![true; builtin_cmds.len()],
             path_cmds: path_cmds,
             builtin_cmds: builtin_cmds,
             fugu_vars: Vec::new(),
             env_vars: Vec::new(),
         }
     }
-    fn reset_search(&mut self) {
+    pub fn reset_search(&mut self) {
         for x in &mut self.path_cache {
-            *x = false;
+            *x = true;
         }
         for x in &mut self.builtin_cache {
-            *x = false;
+            *x = true;
         }
     }
-    fn search_cmd(&mut self, search_str: &str) {
+    pub fn search_cmd(&mut self, search_str: &str) {
         let re = match Regex::new(&search_str) {
             Ok(r) => r,
             Err(why) => {
-                debug!(LOGGER, "Regex Compile Failed, {:?}", why.description());
+                info!(LOGGER, "Regex Compile Failed, {:?}", why.description());
                 return;
             }
         };

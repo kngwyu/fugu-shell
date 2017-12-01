@@ -5,7 +5,7 @@ use walkdir::WalkDir;
 use builtin::*;
 use common::LOGGER;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CommandStore {
     pub name: String,
     pub args: Vec<String>,

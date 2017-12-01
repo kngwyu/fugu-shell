@@ -9,12 +9,14 @@ pub enum ParseStatus {
     WaitOutFile,
     WaitErrFile,
 }
+#[derive(Clone, Copy, Debug)]
 enum ParseResult {
     CmdOk,
 }
+#[derive(Debug)]
 pub struct Parser {
     parsed_cmd: Vec<CommandStore>,
-    parse_status: ParseStatus,
+    pub parse_status: ParseStatus,
     current_token: String,
     current_cmd: CommandStore,
     parse_result: ParseResult,
@@ -35,6 +37,7 @@ impl Parser {
         }
     }
     pub fn read1(&mut self, ch: char) {
+        info!(LOGGER, "{:?}", self);
         self.parse_status = match ch {
             ' ' => self.add_token(),
             ';' => {
@@ -100,5 +103,8 @@ impl Parser {
     fn add_cmd(&mut self) {
         self.parsed_cmd.push(self.current_cmd.clone());
         self.current_cmd = CommandStore::new();
+    }
+    pub fn get_cur_token(&self) -> &str {
+        &self.current_token
     }
 }

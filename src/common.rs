@@ -13,7 +13,9 @@ lazy_static!{
                   (version: "0.0.1")
                   (author: "kngwyu")
                   (about: "This is a command line shell with helm-like search interface")
-                  (@arg DEBUG_FILE: -D --debug +takes_value "Output debug info to file"))
+                  (@arg DEBUG_FILE: -D --debug +takes_value "Output debug info to file")
+                  (@arg DEBUG_LEVEL: -L --level +takes_value "Debug Level")
+        )
         .get_matches();
     pub static ref LOGGER: Logger = match MATCHES.value_of("DEBUG_FILE") {
         Some(s) => FileLoggerBuilder::new(s).level(Severity::Debug).build(),
