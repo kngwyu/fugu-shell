@@ -12,13 +12,30 @@ lazy_static!{
         clap_app!(fugu_shell =>
                   (version: "0.0.1")
                   (author: "kngwyu")
-                  (about: "This is a command line shell with helm-like search interface")
+                  (about: "A command line shell with search interface inspired by helm")
                   (@arg DEBUG_FILE: -D --debug +takes_value "Output debug info to file")
                   (@arg DEBUG_LEVEL: -L --level +takes_value "Debug Level")
+                  (@arg EXEC_FILE: -E --exec +takes_value "Exec command in")
+                  (@arg SETTING_FILE: -S --setting +takes_value "Setting file")
         )
         .get_matches();
     pub static ref LOGGER: Logger = match MATCHES.value_of("DEBUG_FILE") {
-        Some(s) => FileLoggerBuilder::new(s).level(Severity::Debug).build(),
+        Some(s) => {
+            let mut builder = FileLoggerBuilder::new(s);
+            let level_str = MATCHES.value_of("DEBUG_LEVEL").unwrap_or("Critical");
+            let level = match level_str {
+                "1" | "Critical" | "critical" => Severity::Critical,
+                "2" | "Error" | "error" => Severity::Error,
+                "3" | "Warning" | "warning" => Severity::Warning,
+                "4" | "Info" | "info" => Severity::Info,
+                "5" | "Debug" | "debug" => Severity::Debug,
+                "6" | "Trace" | "trace" => Severity::Trace,
+                _ => Severity::Warning,
+            };
+            builder.level(level);
+            builder.truncate();
+            builder.build()
+        }
         None => NullLoggerBuilder{}.build(),
     }.ok().unwrap();
 }

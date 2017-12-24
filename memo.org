@@ -1,4 +1,8 @@
-* めも
+* メモ
+** 参考にした実装
+*** fish-shell
+- 
+** 設計
 - ライブラリ
   - termionを使うことにした
 - 文法
@@ -10,10 +14,23 @@
 - エディタ
   - どうせたいしたことしないからデータ構造は別に何でもいいや...
     - 削除が楽なようにLinkedList<String>とか?
+    - 結局Vecにした
+    - ベンチとった
 - 入力
-  - MouseTerminalは使わない(terminal emulatorのcopy/paste等を使うため)
-  - 基本的に
+  - Mouseはハンドルしない(terminal emulatorのcopy/paste等を使うため)
 - アドバイス
-  - yamlかなんかを食わせよう
+  - yamlかなんかを食わせる
 - 表示
   - 基本的にエディタ+アドバイス画面で考える
+** その他細かいこと
+- できるだけ上でエラー処理する(?を使う)ようにする
+- 実行ファイルへのパス
+  - std::env::current_exe().unwrap()?
+- オプション
+  - command
+  - debug-level
+  - help
+  - version
+  - 設定ファイルの場所
+  - initファイル(fugurc的な)の場所
+- 
