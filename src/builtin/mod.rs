@@ -4,12 +4,32 @@ use common::LOGGER;
 use exec::CommandStore;
 pub const BUILTIN_CMD: [&'static str; 2] = ["cd", "exit"];
 
-pub fn exec_builtin(cmd: &CommandStore) {
+pub enum BuiltinHandle {
+    Cd,
+    Exit,
+    Error,
+}
+
+pub fn exec_builtin(cmd: &CommandStore) -> BuiltinHandle {
+    macro_rules! handle_builtin {
+        ($f: ident, $res: expr) =>  ({
+            use self::BuiltinHandle::*;
+            // TODO: Add error handling (now expect $f returns())
+            $f(cmd);
+            $res
+        })
+    }
     match &*cmd.name {
-        "cd" => builtin_cd(cmd),
-        _ => error!(LOGGER, "Invalid Builtin Command"),
+        "cd" => handle_builtin!(builtin_cd, Cd),
+        "exit" => handle_builtin!(builtin_exit, Exit),
+        _ => {
+            error!(LOGGER, "Invalid Builtin Command");
+            BuiltinHandle::Error
+        }
     }
 }
+
+fn builtin_exit(cmd: &CommandStore) {}
 
 fn builtin_cd(cmd: &CommandStore) {
     match cmd.args.len() {
@@ -33,15 +53,13 @@ fn builtin_cd(cmd: &CommandStore) {
                 println!("cd: '{}' does not exist", cmd.args[0])
             }
         }
-        _ => {
-            match env::var("HOME") {
-                Ok(dir_str) => {
-                    if !env::set_current_dir(&dir_str).is_ok() {
-                        println!("cd: failed");
-                    }
+        _ => match env::var("HOME") {
+            Ok(dir_str) => {
+                if !env::set_current_dir(&dir_str).is_ok() {
+                    println!("cd: failed");
                 }
-                Err(e) => println!("cd: No home dir, {}", e),
             }
-        }
+            Err(e) => println!("cd: No home dir, {}", e),
+        },
     }
 }

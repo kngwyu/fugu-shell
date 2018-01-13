@@ -43,3 +43,25 @@ lazy_static!{
 pub fn is_file_executable(fdata: &Metadata) -> bool {
     (fdata.mode() & 0o111) != 0
 }
+
+#[macro_export]
+macro_rules! ok_or_continue {
+    ($val:expr) => (
+        if let Ok(v) = $val {
+            v
+        } else {
+            continue;
+        }
+    )
+}
+
+#[macro_export]
+macro_rules! some_or_continue {
+    ($val:expr) => (
+        if let Some(v) = $val {
+            v
+        } else {
+            continue;
+        }
+    )
+}

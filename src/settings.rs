@@ -1,7 +1,9 @@
 use std::io::{self, Write};
 use std::str::FromStr;
+use std::error::Error;
 use termion::color;
 use termion::color::*;
+use fugu_screen::ScreenError;
 pub struct PromptSetting<'a> {
     face1: &'a str,
     face2: &'a str,
@@ -16,7 +18,11 @@ impl<'a> PromptSetting<'a> {
             dir_depth: 2,
         }
     }
-    pub fn print_face<W: Write>(&self, path: &String, mut stdout: &mut W) -> usize {
+    pub fn print_face<W: Write>(
+        &self,
+        path: &String,
+        mut stdout: &mut W,
+    ) -> Result<usize, ScreenError> {
         let p = {
             let mut cur = path.len() - 1;
             let mut cnt = 0;
@@ -41,8 +47,8 @@ impl<'a> PromptSetting<'a> {
             p,
             color::Fg(LightWhite),
             self.face2,
-        );
-        stdout.flush().unwrap();
-        self.face1.len() + self.face2.len() + p.len()
+        )?;
+        stdout.flush()?;
+        Ok(self.face1.len() + self.face2.len() + p.len())
     }
 }

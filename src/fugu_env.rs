@@ -1,33 +1,31 @@
 use std::env;
 use walkdir::WalkDir;
 use builtin::*;
-use common::{LOGGER, is_file_executable};
+use common::{is_file_executable, LOGGER};
 use regex::Regex;
 use std::error::Error;
 pub struct FuguEnv<'a> {
     pub path_cmds: Vec<String>,
     pub builtin_cmds: Vec<&'a str>, // ビルトイン関数
-    fugu_vars: Vec<String>, // Fugu変数
-    env_vars: Vec<String>, // 環境変数
+    fugu_vars: Vec<String>,         // Fugu変数
+    env_vars: Vec<String>,          // 環境変数
     path_cache: Vec<bool>,
     builtin_cache: Vec<bool>,
 }
 impl<'a> FuguEnv<'a> {
+    // todo: エラーハンドリングの追加
+    // ハンドルするほどのエラーがあるかよくわからないが...
+    // (だってディレクトリやファイルがなかったらどうしようもないからなあ)
     pub fn new() -> FuguEnv<'a> {
         let mut path_cmds = Vec::new();
         if let Some(paths) = env::var_os("PATH") {
             for path in env::split_paths(&paths) {
                 let dirname = path.to_str().unwrap().to_owned();
                 for entry in WalkDir::new(&dirname).min_depth(1).max_depth(1) {
-                    let e = entry.ok().unwrap();
-                    let fname = match e.file_name().to_os_string().into_string() {
-                        Ok(s) => s,
-                        Err(_) => {
-                            error!(LOGGER, "Error in into_string");
-                            continue;
-                        }
-                    };
-                    let fdata = e.metadata().ok().unwrap();
+                    let e = ok_or_continue!(entry);
+                    let fname = e.file_name().to_os_string().into_string();
+                    let fname = ok_or_continue!(fname);
+                    let fdata = ok_or_continue!(e.metadata());
                     if fdata.is_file() && is_file_executable(&fdata) {
                         path_cmds.push(fname);
                     }
@@ -45,13 +43,12 @@ impl<'a> FuguEnv<'a> {
         }
     }
     pub fn reset_search(&mut self) {
-        for x in &mut self.path_cache {
-            *x = true;
-        }
-        for x in &mut self.builtin_cache {
-            *x = true;
-        }
+        self.path_cache
+            .iter_mut()
+            .chain(self.builtin_cache.iter_mut())
+            .for_each(|ref_v| *ref_v = true);
     }
+    // TODO: これはハンドルしないとSyntax Highlightingできないので絶対必要
     pub fn search_cmd(&mut self, search_str: &str) {
         let re = match Regex::new(&search_str) {
             Ok(r) => r,
@@ -90,6 +87,13 @@ impl<'a> FuguEnv<'a> {
             }
         }
         res
+    }
+    pub fn get_cmd_str(&self, id: (usize, CommandType)) -> Option<&str> {
+        match id.1 {
+            CommandType::Path => Some(&self.path_cmds[id.0]),
+            CommandType::Builtin => Some(self.builtin_cmds[id.0]),
+            CommandType::User => unimplemented!(),
+        }
     }
 }
 

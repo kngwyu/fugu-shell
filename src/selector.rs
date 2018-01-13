@@ -9,7 +9,7 @@ pub struct Selector {
 
 impl Default for Selector {
     fn default() -> Selector {
-         Selector {
+        Selector {
             max_print: 1,
             range: (0, 1),
             buf: Vec::new(),
@@ -27,6 +27,10 @@ impl Selector {
             buf: b,
             cursor: None,
         }
+    }
+    pub fn get_idx(&self) -> Option<(usize, CommandType)> {
+        let cursor = self.cursor?;
+        Some(self.buf[cursor])
     }
     pub fn csr_down(&mut self) {
         if let Some(num) = self.cursor {
@@ -50,6 +54,8 @@ impl Selector {
                     self.range.0 -= 1;
                     self.range.1 -= 1;
                 }
+            } else {
+                self.cursor = None;
             }
         }
     }

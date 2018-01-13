@@ -46,8 +46,6 @@ impl CommandStore {
     }
 }
 
-
-
 // 'aはstaticのみ
 pub struct CommandList<'a> {
     commands_in_path: HashSet<String>,
@@ -61,22 +59,20 @@ impl<'a> CommandList<'a> {
         let mut path_cmds = HashSet::new();
         let s = "";
         match env::var_os("PATH") {
-            Some(paths) => {
-                for path in env::split_paths(&paths) {
-                    let dirname = path.to_str().unwrap().to_owned();
-                    for entry in WalkDir::new(&dirname).min_depth(1).max_depth(1) {
-                        let e = entry.ok().unwrap();
-                        let fname = match e.file_name().to_os_string().into_string() {
-                            Ok(s) => s,
-                            Err(_) => panic!("Error in into_string"),
-                        };
-                        let fdata = e.metadata().ok().unwrap();
-                        if fdata.is_file() {
-                            path_cmds.insert(fname);
-                        }
+            Some(paths) => for path in env::split_paths(&paths) {
+                let dirname = path.to_str().unwrap().to_owned();
+                for entry in WalkDir::new(&dirname).min_depth(1).max_depth(1) {
+                    let e = ok_or_continue!(entry);
+                    let fname = match e.file_name().to_os_string().into_string() {
+                        Ok(s) => s,
+                        Err(_) => panic!("Error in into_string"),
+                    };
+                    let fdata = ok_or_continue!(e.metadata());
+                    if fdata.is_file() {
+                        path_cmds.insert(fname);
                     }
                 }
-            }
+            },
             None => {}
         }
         let bulitin_cmds: HashSet<&str> = BUILTIN_CMD.iter().cloned().collect();
@@ -106,6 +102,7 @@ impl<'a> CommandList<'a> {
     }
     pub fn execute_command(&self, cmds: Vec<CommandStore>) {
         for storecm in cmds {
+            trace!(LOGGER, "cmd: {:?}", storecm);
             let name = &*storecm.name;
             if self.commands_builtin.contains(name) {
                 exec_builtin(&storecm);
@@ -119,7 +116,7 @@ impl<'a> CommandList<'a> {
                 }
                 cmd.spawn().expect("failed to execute process");
             } else {
-                println!("Fugu: Unknown command '{}'", name)
+                debug!(LOGGER, "Fugu: Unknown command '{}'", name)
             }
         }
     }

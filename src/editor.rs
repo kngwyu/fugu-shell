@@ -6,7 +6,7 @@ use std::str::from_utf8;
 pub struct Editor {
     pub buffer: Vec<String>,
     pub cursor_base: Point, // 1-indexed
-    pub cursor_buf: Point, // 0-indexed
+    pub cursor_buf: Point,  // 0-indexed
     yank: Option<String>,
 }
 pub enum EditResult {
@@ -40,8 +40,26 @@ impl Editor {
             self.buffer,
             self.to_str(),
             (self.cursor_buf + self.cursor_base).goto()
-        )
-        .unwrap();
+        ).unwrap();
+    }
+    fn backspace(&mut self) -> EditResult {
+        let current_len = self.buffer[self.cursor_buf.y].len();
+        if current_len == 0 || self.cursor_buf.x == 0 {
+            return EditResult::None;
+        } else if self.cursor_buf.x == current_len {
+            self.buffer[self.cursor_buf.y].pop();
+            self.cursor_buf.x -= 1;
+        } else {
+            assert!(self.cursor_buf.x < current_len);
+            self.cursor_buf.x -= 1;
+            self.buffer[self.cursor_buf.y].remove(self.cursor_buf.x);
+            let current_len = self.buffer[self.cursor_buf.y].len();
+        }
+        EditResult::Edited
+    }
+    pub fn insert_str(&mut self, s: &str) {
+        self.buffer[self.cursor_buf.y].insert_str(self.cursor_buf.x, s);
+        self.cursor_buf.x += s.len();
     }
     pub fn handle_key(&mut self, key: &Key) -> EditResult {
         match *key {
@@ -59,22 +77,7 @@ impl Editor {
                     EditResult::JustAdd
                 }
             }
-            Key::Ctrl('h') | Key::Backspace => {
-                // insert
-                let current_len = self.buffer[self.cursor_buf.y].len();
-                if current_len == 0 || self.cursor_buf.x == 0 {
-                    return EditResult::None;
-                } else if self.cursor_buf.x == current_len {
-                    self.buffer[self.cursor_buf.y].pop();
-                    self.cursor_buf.x -= 1;
-                } else {
-                    assert!(self.cursor_buf.x < current_len);
-                    self.cursor_buf.x -= 1;
-                    self.buffer[self.cursor_buf.y].remove(self.cursor_buf.x);
-                    let current_len = self.buffer[self.cursor_buf.y].len();
-                }
-                EditResult::Edited
-            }
+            Key::Ctrl('h') | Key::Backspace => self.backspace(),
             Key::Ctrl('f') | Key::Right => {
                 let current_len = self.buffer[self.cursor_buf.y].len();
                 if self.cursor_buf.x >= current_len {
@@ -113,10 +116,8 @@ impl Editor {
             }
             Key::Ctrl('k') => {
                 let current_len = self.buffer[self.cursor_buf.y].len();
-                self.yank = Some(
-                    self.buffer[self.cursor_buf.y][self.cursor_buf.x..current_len]
-                        .to_owned(),
-                );
+                self.yank =
+                    Some(self.buffer[self.cursor_buf.y][self.cursor_buf.x..current_len].to_owned());
                 self.buffer[self.cursor_buf.y].truncate(self.cursor_buf.x);
                 EditResult::Edited
             }
@@ -132,6 +133,23 @@ impl Editor {
             }
 
             _ => EditResult::None,
+        }
+    }
+    pub fn delete_untill(&mut self, untill_char: &[char]) {
+        while let Some(c) = self.get_prev_char() {
+            let has = untill_char.iter().any(|&u| u == c);
+            if has {
+                break;
+            } else {
+                self.backspace();
+            }
+        }
+    }
+    fn get_prev_char(&self) -> Option<char> {
+        if self.cursor_buf.x == 0 {
+            None
+        } else {
+            Some(self.buffer[self.cursor_buf.y].as_bytes()[self.cursor_buf.x - 1] as char)
         }
     }
     // パーサにわたす
@@ -153,7 +171,7 @@ impl Editor {
 }
 
 use std::ops::{Add, Sub};
-use std::cmp::{Ord, PartialOrd, Eq, PartialEq, Ordering};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 #[derive(Copy, Clone, Debug)]
 pub struct Point {
     pub x: usize,

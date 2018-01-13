@@ -9,10 +9,13 @@ pub enum ParseStatus {
     WaitOutFile,
     WaitErrFile,
 }
+
+// なんでResultが一種類しかないの？
 #[derive(Clone, Copy, Debug)]
 enum ParseResult {
     CmdOk,
 }
+pub const DELIMITERS: [char; 7] = [' ', ';', '|', '&', '<', '>', '^'];
 #[derive(Debug)]
 pub struct Parser {
     parsed_cmd: Vec<CommandStore>,
@@ -35,12 +38,14 @@ impl Parser {
         for c in s.chars() {
             self.read1(c);
         }
+        self.add_cmd();
     }
     pub fn read1(&mut self, ch: char) {
         info!(LOGGER, "{:?}", self);
         self.parse_status = match ch {
             ' ' => self.add_token(),
             ';' => {
+                self.add_token();
                 self.add_cmd();
                 ParseStatus::WaitCommand
             }
@@ -70,6 +75,9 @@ impl Parser {
                 self.parse_status
             }
         };
+    }
+    pub fn remove_cur_token(&mut self) {
+        self.current_token.clear();
     }
     fn add_token(&mut self) -> ParseStatus {
         if self.current_token.len() == 0 {
@@ -103,6 +111,10 @@ impl Parser {
     fn add_cmd(&mut self) {
         self.parsed_cmd.push(self.current_cmd.clone());
         self.current_cmd = CommandStore::new();
+    }
+    pub fn enter(&mut self) -> Vec<CommandStore> {
+        self.read1(';');
+        self.parsed_cmd.clone()
     }
     pub fn get_cur_token(&self) -> &str {
         &self.current_token
